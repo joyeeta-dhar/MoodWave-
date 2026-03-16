@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts ─────────────────────────────────────────── */
+:root {
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  /* ── Default (calm) mood theme ──────────────────────────── */
+  --mood-primary: #a78bfa;
+  --mood-secondary: #7c3aed;
+  --mood-accent: #c4b5fd;
+  --mood-bg-from: #0f0a1e;
+  --mood-bg-mid: #1a0a2e;
+  --mood-bg-to: #0d0d1a;
+  --mood-glow: rgba(167, 139, 250, 0.3);
+  --mood-particle: #a78bfa;
+  --mood-text: #f3f0ff;
+  --mood-card-bg: rgba(167, 139, 250, 0.08);
+  --mood-card-border: rgba(167, 139, 250, 0.2);
+
+  /* UI */
+  --transition-speed: 800ms;
+}
+
+/* ── Mood themes ─────────────────────────────────────────── */
+[data-mood='happy'] {
+  --mood-primary: #fbbf24;
+  --mood-secondary: #f59e0b;
+  --mood-accent: #fde68a;
+  --mood-bg-from: #1a1000;
+  --mood-bg-mid: #2d1a00;
+  --mood-bg-to: #1a0f00;
+  --mood-glow: rgba(251, 191, 36, 0.35);
+  --mood-particle: #fbbf24;
+  --mood-text: #fffbeb;
+  --mood-card-bg: rgba(251, 191, 36, 0.08);
+  --mood-card-border: rgba(251, 191, 36, 0.25);
+}
+
+[data-mood='sad'] {
+  --mood-primary: #60a5fa;
+  --mood-secondary: #3b82f6;
+  --mood-accent: #93c5fd;
+  --mood-bg-from: #040d18;
+  --mood-bg-mid: #081525;
+  --mood-bg-to: #020a14;
+  --mood-glow: rgba(96, 165, 250, 0.25);
+  --mood-particle: #60a5fa;
+  --mood-text: #eff6ff;
+  --mood-card-bg: rgba(96, 165, 250, 0.07);
+  --mood-card-border: rgba(96, 165, 250, 0.18);
+}
+
+[data-mood='energetic'] {
+  --mood-primary: #f472b6;
+  --mood-secondary: #ec4899;
+  --mood-accent: #a855f7;
+  --mood-bg-from: #1a0010;
+  --mood-bg-mid: #2d001e;
+  --mood-bg-to: #100015;
+  --mood-glow: rgba(244, 114, 182, 0.4);
+  --mood-particle: #f472b6;
+  --mood-text: #fdf2f8;
+  --mood-card-bg: rgba(244, 114, 182, 0.09);
+  --mood-card-border: rgba(244, 114, 182, 0.3);
+}
+
+[data-mood='calm'] {
+  --mood-primary: #34d399;
+  --mood-secondary: #10b981;
+  --mood-accent: #6ee7b7;
+  --mood-bg-from: #001a10;
+  --mood-bg-mid: #002b1a;
+  --mood-bg-to: #001208;
+  --mood-glow: rgba(52, 211, 153, 0.25);
+  --mood-particle: #34d399;
+  --mood-text: #ecfdf5;
+  --mood-card-bg: rgba(52, 211, 153, 0.07);
+  --mood-card-border: rgba(52, 211, 153, 0.2);
+}
+
+[data-mood='stressed'] {
+  --mood-primary: #fb923c;
+  --mood-secondary: #f97316;
+  --mood-accent: #fed7aa;
+  --mood-bg-from: #1a0800;
+  --mood-bg-mid: #2d1200;
+  --mood-bg-to: #140600;
+  --mood-glow: rgba(251, 146, 60, 0.3);
+  --mood-particle: #fb923c;
+  --mood-text: #fff7ed;
+  --mood-card-bg: rgba(251, 146, 60, 0.08);
+  --mood-card-border: rgba(251, 146, 60, 0.22);
+}
+
+[data-mood='romantic'] {
+  --mood-primary: #f43f5e;
+  --mood-secondary: #e11d48;
+  --mood-accent: #fda4af;
+  --mood-bg-from: #1a0008;
+  --mood-bg-mid: #2d0010;
+  --mood-bg-to: #140005;
+  --mood-glow: rgba(244, 63, 94, 0.3);
+  --mood-particle: #f43f5e;
+  --mood-text: #fff1f2;
+  --mood-card-bg: rgba(244, 63, 94, 0.08);
+  --mood-card-border: rgba(244, 63, 94, 0.22);
+}
+
+[data-mood='nostalgic'] {
+  --mood-primary: #a78bfa;
+  --mood-secondary: #8b5cf6;
+  --mood-accent: #ddd6fe;
+  --mood-bg-from: #0f0514;
+  --mood-bg-mid: #1a0a28;
+  --mood-bg-to: #0a0510;
+  --mood-glow: rgba(167, 139, 250, 0.3);
+  --mood-particle: #a78bfa;
+  --mood-text: #faf5ff;
+  --mood-card-bg: rgba(167, 139, 250, 0.08);
+  --mood-card-border: rgba(167, 139, 250, 0.2);
+}
+
+/* ── Base styles ─────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--mood-bg-from);
+  color: var(--mood-text);
+  transition:
+    background-color var(--transition-speed) ease,
+    color var(--transition-speed) ease;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ── Glassmorphism utility ───────────────────────────────── */
+.glass {
+  background: var(--mood-card-bg);
+  border: 1px solid var(--mood-card-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Glow utility ────────────────────────────────────────── */
+.glow {
+  box-shadow: 0 0 30px var(--mood-glow), 0 0 60px var(--mood-glow);
+}
+
+.glow-text {
+  text-shadow: 0 0 20px var(--mood-primary);
+}
+
+/* ── Mood gradient text ──────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--mood-primary), var(--mood-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--mood-primary);
+  border-radius: 3px;
+}
+
+/* ── Three.js canvas ─────────────────────────────────────── */
+#three-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
