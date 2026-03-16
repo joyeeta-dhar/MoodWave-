@@ -21,7 +21,9 @@ MoodWave uses Claude AI to analyze your emotions from natural language input, th
 | Deployment   | Vercel (FE) + Render (BE) + Supabase|
 
 ---
-## Live link mood-wave-theta.vercel.app
+## Live link 
+https://mood-wave-theta.vercel.app/
+
 ## Local Setup
 
 ### Prerequisites
