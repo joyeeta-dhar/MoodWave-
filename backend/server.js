@@ -82,10 +82,17 @@ app.get('/api/debug', async (req, res) => {
     tables = {
       users: { 
         exists: existingTables.includes('users'),
-        columns: userColumns 
+        columns: userColumns,
+        count: (await db.query('SELECT COUNT(*) FROM public.users')).rows[0].count
       },
-      mood_history: existingTables.includes('mood_history'),
-      recommendations: existingTables.includes('recommendations')
+      mood_history: {
+        exists: existingTables.includes('mood_history'),
+        count: (await db.query('SELECT COUNT(*) FROM public.mood_history')).rows[0].count
+      },
+      recommendations: {
+        exists: existingTables.includes('recommendations'),
+        count: (await db.query('SELECT COUNT(*) FROM public.recommendations')).rows[0].count
+      }
     };
   } catch (e) {
     dbStatus = 'failed';
