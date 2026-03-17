@@ -49,6 +49,28 @@ app.use('/api/mood', moodLimiter, moodRoutes);
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
+// Debug endpoint – check env vars + DB connectivity
+app.get('/api/debug', async (req, res) => {
+  const db = require('./config/database');
+  let dbStatus = 'unknown';
+  let dbError = null;
+  try {
+    await db.query('SELECT 1');
+    dbStatus = 'connected';
+  } catch (e) {
+    dbStatus = 'failed';
+    dbError = e.message;
+  }
+  res.json({
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL ? 'set (' + process.env.DATABASE_URL.slice(0, 30) + '...)' : 'MISSING',
+      JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'MISSING',
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+    },
+    db: { status: dbStatus, error: dbError },
+  });
+});
+
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
