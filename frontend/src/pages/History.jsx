@@ -231,8 +231,8 @@ export default function History() {
                 <div className="space-y-3">
                   {stats.map(s => (
                     <StatBar
-                      key={s.detected_mood}
-                      mood={s.detected_mood}
+                      key={s.mood}
+                      mood={s.mood}
                       count={parseInt(s.count)}
                       max={maxCount}
                     />
