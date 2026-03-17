@@ -145,8 +145,8 @@ export default function History() {
       api.get('/mood/history'),
       api.get('/mood/stats'),
     ]).then(([histRes, statsRes]) => {
-      setHistory(histRes.data.history)
-      setStats(statsRes.data.stats)
+      setHistory(histRes.data)
+      setStats(statsRes.data)
     }).catch(console.error)
       .finally(() => setLoading(false))
   }, [user])

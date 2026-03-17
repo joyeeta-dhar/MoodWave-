@@ -49,68 +49,6 @@ app.use('/api/mood', moodLimiter, moodRoutes);
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
-// Debug endpoint – check env vars + DB connectivity + Schema
-app.get('/api/debug', async (req, res) => {
-  const db = require('./config/database');
-  let dbStatus = 'unknown';
-  let dbError = null;
-  let tables = {};
-  
-  try {
-    await db.query('SELECT 1');
-    dbStatus = 'connected';
-    
-    // Check for tables
-    const tableCheck = await db.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      AND table_name IN ('users', 'mood_history', 'recommendations')
-    `);
-    const existingTables = tableCheck.rows.map(r => r.table_name);
-    
-    let userColumns = [];
-    if (existingTables.includes('users')) {
-      const colCheck = await db.query(`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'users'
-      `);
-      userColumns = colCheck.rows;
-    }
-
-    tables = {
-      users: { 
-        exists: existingTables.includes('users'),
-        columns: userColumns,
-        count: (await db.query('SELECT COUNT(*) FROM public.users')).rows[0].count
-      },
-      mood_history: {
-        exists: existingTables.includes('mood_history'),
-        count: (await db.query('SELECT COUNT(*) FROM public.mood_history')).rows[0].count
-      },
-      recommendations: {
-        exists: existingTables.includes('recommendations'),
-        count: (await db.query('SELECT COUNT(*) FROM public.recommendations')).rows[0].count
-      }
-    };
-  } catch (e) {
-    dbStatus = 'failed';
-    dbError = e.message;
-  }
-  
-  res.json({
-    env: {
-      DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'MISSING',
-      JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'MISSING',
-      GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'set' : 'MISSING',
-      LASTFM_API_KEY: process.env.LASTFM_API_KEY ? 'set' : 'MISSING',
-    },
-    db: { status: dbStatus, error: dbError },
-    schema: tables
-  });
-});
-
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
