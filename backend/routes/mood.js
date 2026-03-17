@@ -21,11 +21,11 @@ router.post('/analyze', async (req, res) => {
 
     if (userId) {
       const moodResult = await db.query(
-        'INSERT INTO mood_history (user_id, raw_input, detected_mood, confidence, emotion_scores) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        'INSERT INTO public.mood_history (user_id, raw_input, detected_mood, confidence, emotion_scores) VALUES ($1, $2, $3, $4, $5) RETURNING id',
         [userId, text, analysis.mood, analysis.confidence, analysis.scores]
       );
       await db.query(
-        'INSERT INTO recommendations (mood_history_id, user_id, tracks) VALUES ($1, $2, $3)',
+        'INSERT INTO public.recommendations (mood_history_id, user_id, tracks) VALUES ($1, $2, $3)',
         [moodResult.rows[0].id, userId, JSON.stringify(tracks)]
       );
     }
@@ -47,8 +47,8 @@ router.get('/history', auth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT mh.*, r.tracks 
-       FROM mood_history mh 
-       LEFT JOIN recommendations r ON mh.id = r.mood_history_id 
+       FROM public.mood_history mh 
+       LEFT JOIN public.recommendations r ON mh.id = r.mood_history_id 
        WHERE mh.user_id = $1 
        ORDER BY mh.created_at DESC LIMIT 50`,
       [req.user.id]
@@ -63,7 +63,7 @@ router.get('/history', auth, async (req, res) => {
 router.get('/stats', auth, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT detected_mood as mood, COUNT(*) as count FROM mood_history WHERE user_id = $1 GROUP BY detected_mood',
+      'SELECT detected_mood as mood, COUNT(*) as count FROM public.mood_history WHERE user_id = $1 GROUP BY detected_mood',
       [req.user.id]
     );
     res.json(result.rows);
