@@ -68,8 +68,22 @@ app.get('/api/debug', async (req, res) => {
       AND table_name IN ('users', 'mood_history', 'recommendations')
     `);
     const existingTables = tableCheck.rows.map(r => r.table_name);
+    
+    let userColumns = [];
+    if (existingTables.includes('users')) {
+      const colCheck = await db.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'users'
+      `);
+      userColumns = colCheck.rows;
+    }
+
     tables = {
-      users: existingTables.includes('users'),
+      users: { 
+        exists: existingTables.includes('users'),
+        columns: userColumns 
+      },
       mood_history: existingTables.includes('mood_history'),
       recommendations: existingTables.includes('recommendations')
     };
