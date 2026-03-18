@@ -2,7 +2,7 @@
   "devDependencies": {
     "concurrently": "^9.2.1"
   },
-  "name": "files-(2)",
+  "name": "moodwave",
   "version": "1.0.0",
   "description": "> Tell us how you feel. We'll find the perfect soundtrack.",
   "main": "index.js",
