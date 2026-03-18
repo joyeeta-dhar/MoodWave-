@@ -9,21 +9,14 @@
       }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://moodwave-backend-ayqg.onrender.com/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://moodwave-backend-ayqg.onrender.com/api/:path*"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/frontend/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/index.html"
+      "source": "/(.*)",
+      "destination": "/frontend/index.html"
     }
   ]
 }

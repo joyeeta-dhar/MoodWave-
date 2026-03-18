@@ -16,9 +16,11 @@ app.use(helmet());
 // ── CORS ──────────────────────────────────────────────────────
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    /\.vercel\.app$/,  // allow all Vercel preview deployments
-  ],
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    /\.vercel\.app$/,
+    /^https:\/\/.*\.vercel\.app$/
+  ].filter(Boolean),
   credentials: true,
 }));
 
