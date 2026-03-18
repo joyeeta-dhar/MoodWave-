@@ -59,7 +59,7 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' || process.env.RENDER === 'true') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`🎵 MoodWave API running on port ${PORT}`);
