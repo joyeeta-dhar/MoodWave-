@@ -1,4 +1,9 @@
 const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const db = require('../config/database');
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const LASTFM_BASE = 'https://ws.audioscrobbler.com/2.0/';
 const LASTFM_KEY = process.env.LASTFM_API_KEY;
@@ -37,7 +42,7 @@ async function fetchTracksByTag(tag, limit = 10) {
 }
 
 /**
- * Fetch similar artists' top tracks for better personalization
+ * Fetch similar artists' top tracks
  */
 async function fetchArtistTopTracks(artist, limit = 3) {
   try {
@@ -59,7 +64,7 @@ async function fetchArtistTopTracks(artist, limit = 3) {
 }
 
 /**
- * Normalize track object from Last.fm response
+ * Normalize track object
  */
 function formatTrack(track) {
   const images = track.image || [];
@@ -69,14 +74,9 @@ function formatTrack(track) {
     images[images.length - 1]?.['#text'] ||
     null;
 
-  // Last.fm returns a default star avatar when it has no art - ignore it so our dynamic fallback kicks in
-  if (albumArt && albumArt.includes('2a96cbd8b46e442fc41c2b86b821562f')) {
-    albumArt = null;
-  }
+  if (albumArt && albumArt.includes('2a96cbd8b46e442fc41c2b86b821562f')) albumArt = null;
 
-  // To ensure the placeholders are vibrant and varied, use a styled UI Avatar fallback 
-  // or a more reliable photo placeholder.
-  const fallbackImg = `https://picsum.photos/seed/${encodeURIComponent(track.name + track.artist)}/300/300`;
+  const fallbackImg = `https://picsum.photos/seed/${encodeURIComponent((track.name || '') + (track.artist?.name || track.artist || ''))}/300/300`;
 
   return {
     id: `${track.artist?.name || track.artist}-${track.name}`.replace(/\s+/g, '-').toLowerCase(),
@@ -90,24 +90,75 @@ function formatTrack(track) {
 
 
 /**
- * Build a full playlist for a detected mood
- * @param {string} mood - Detected mood key
- * @param {string[]} tags - Music tags from mood profile
- * @returns {Object[]} Array of track objects
+ * Build a full playlist for a detected mood with AI explanations and user learning
  */
-async function buildPlaylist(mood, tags = []) {
-  const seeds = MOOD_SEED_ARTISTS[mood] || MOOD_SEED_ARTISTS.calm;
-  const primaryTag = tags[0] || mood;
+async function buildPlaylist(moodResult, userId = null) {
+  // Support old signature (mood, tags) by checking types
+  let mood, tags, valence, energy, tempo, artists;
+  
+  if (typeof moodResult === 'string') {
+    mood = moodResult;
+    tags = arguments[1] || [];
+    valence = 0.5; energy = 0.5; tempo = 100;
+    artists = [];
+  } else {
+    ({ mood, musicProfile: { tags }, valence, energy, tempo, artists } = moodResult);
+  }
 
-  const [tagTracks, ...artistTrackArrays] = await Promise.all([
-    fetchTracksByTag(primaryTag, 8),
-    ...seeds.slice(0, 3).map((a) => fetchArtistTopTracks(a, 2)),
+  const seeds = MOOD_SEED_ARTISTS[mood] || MOOD_SEED_ARTISTS.calm;
+  const primaryTag = (tags && tags[0]) || mood;
+
+  // 1. Fetch tracks in parallel
+  // If artists are mentioned, we fetch more for them (up to 10 each)
+  const artistQueries = (artists || []).slice(0, 3).map((a) => fetchArtistTopTracks(a, 10));
+  
+  const [tagTracks, seedArtistTracks, mentionedArtistTracks] = await Promise.all([
+    fetchTracksByTag(primaryTag, 15),
+    Promise.all(seeds.slice(0, 2).map((a) => fetchArtistTopTracks(a, 5))),
+    Promise.all(artistQueries),
   ]);
 
-  const artistTracks = artistTrackArrays.flat();
-  const combined = [...tagTracks, ...artistTracks];
+  // Combine and de-duplicate
+  let combined = [...mentionedArtistTracks.flat(), ...seedArtistTracks.flat(), ...tagTracks];
+  
+  // Extra filter: if "hindi" is in tags, ensure we favor tracks that mention hindi or are from the mentioned hindi artists
+  if (tags && tags.some(t => t.toLowerCase() === 'hindi')) {
+    const hindiTracks = combined.filter(t => 
+      t.artist.toLowerCase().includes('singh') || 
+      t.artist.toLowerCase().includes('aslam') ||
+      t.artist.toLowerCase().includes('nigam') ||
+      t.title.toLowerCase().includes('hindi')
+    );
+    const nonHindi = combined.filter(t => !hindiTracks.includes(t));
+    combined = [...hindiTracks, ...nonHindi];
+  }
 
-  // Deduplicate by title+artist
+  // 2. Apply Learning Loop (Filter skips & Boost likes)
+  if (userId) {
+    try {
+      // Fetch all recent feedback
+      const { rows: feedbackRows } = await db.query(
+        "SELECT track_id, action FROM public.user_feedback WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'",
+        [userId]
+      );
+      
+      const skippedIds = new Set(feedbackRows.filter(r => r.action === 'skip').map(r => r.track_id));
+      const likedIds = new Set(feedbackRows.filter(r => r.action === 'like' || r.action === 'replay').map(r => r.track_id));
+      
+      if (skippedIds.size > 0) {
+        combined = combined.filter(track => !skippedIds.has(track.id));
+      }
+      
+      // Boost liked tracks by moving them to the front if they appear in our new fetch
+      const likedInPool = combined.filter(t => likedIds.has(t.id));
+      const others = combined.filter(t => !likedIds.has(t.id));
+      combined = [...likedInPool, ...others];
+    } catch (err) {
+      console.error('Feedback filtering/boosting failed:', err);
+    }
+  }
+
+  // 3. Deduplicate
   const seen = new Set();
   const unique = combined.filter((t) => {
     const key = `${t.title}-${t.artist}`.toLowerCase();
@@ -116,36 +167,30 @@ async function buildPlaylist(mood, tags = []) {
     return true;
   });
 
-  // If API failed / no key, return curated fallback
-  if (unique.length < 5) return getFallbackPlaylist(mood);
+  const finalTracks = unique.slice(0, 10);
 
-  return unique.slice(0, 15);
-}
+  // 4. AI Explanation Engine
+  try {
+    const tracksSummary = finalTracks.map(t => `${t.title} by ${t.artist}`).join(', ');
+    const explanationPrompt = `
+      The user mood is "${mood}" (Valence: ${valence}, Energy: ${energy}, Tempo: ${tempo} BPM).
+      Provide a specific reason (max 12 words) why each of these songs fits this mood.
+      Tracks: ${tracksSummary}
+      Return ONLY a JSON array of strings in the exact same order.
+    `;
 
-/**
- * Static fallback playlist when API is unavailable
- */
-function getFallbackPlaylist(mood) {
-  const fallbacks = {
-    happy: [
-      { id: 'h1', title: 'Happy', artist: 'Pharrell Williams', albumArt: 'https://picsum.photos/seed/happy1/300/300', playUrl: 'https://www.youtube.com/results?search_query=Pharrell+Williams+Happy', listeners: 9000000 },
-      { id: 'h2', title: 'Good as Hell', artist: 'Lizzo', albumArt: 'https://picsum.photos/seed/happy2/300/300', playUrl: 'https://www.youtube.com/results?search_query=Lizzo+Good+as+Hell', listeners: 7000000 },
-      { id: 'h3', title: 'Levitating', artist: 'Dua Lipa', albumArt: 'https://picsum.photos/seed/happy3/300/300', playUrl: 'https://www.youtube.com/results?search_query=Dua+Lipa+Levitating', listeners: 8500000 },
-    ],
-    sad: [
-      { id: 's1', title: 'Motion Sickness', artist: 'Phoebe Bridgers', albumArt: 'https://picsum.photos/seed/sad1/300/300', playUrl: 'https://www.youtube.com/results?search_query=Phoebe+Bridgers+Motion+Sickness', listeners: 2000000 },
-      { id: 's2', title: 'Skinny Love', artist: 'Bon Iver', albumArt: 'https://picsum.photos/seed/sad2/300/300', playUrl: 'https://www.youtube.com/results?search_query=Bon+Iver+Skinny+Love', listeners: 4000000 },
-    ],
-    energetic: [
-      { id: 'e1', title: 'Blinding Lights', artist: 'The Weeknd', albumArt: 'https://picsum.photos/seed/energetic1/300/300', playUrl: 'https://www.youtube.com/results?search_query=The+Weeknd+Blinding+Lights', listeners: 12000000 },
-      { id: 'e2', title: 'SICKO MODE', artist: 'Travis Scott', albumArt: 'https://picsum.photos/seed/energetic2/300/300', playUrl: 'https://www.youtube.com/results?search_query=Travis+Scott+Sicko+Mode', listeners: 10000000 },
-    ],
-    calm: [
-      { id: 'c1', title: 'Nights', artist: 'Frank Ocean', albumArt: 'https://picsum.photos/seed/calm1/300/300', playUrl: 'https://www.youtube.com/results?search_query=Frank+Ocean+Nights', listeners: 5000000 },
-      { id: 'c2', title: 'The Less I Know The Better', artist: 'Tame Impala', albumArt: 'https://picsum.photos/seed/calm2/300/300', playUrl: 'https://www.youtube.com/results?search_query=Tame+Impala+Less+I+Know', listeners: 6000000 },
-    ],
-  };
-  return fallbacks[mood] || fallbacks.calm;
+    const aiRes = await model.generateContent(explanationPrompt);
+    const explanations = JSON.parse(aiRes.response.text().replace(/```json|```/g, '').trim());
+    
+    finalTracks.forEach((track, i) => {
+      track.aiExplanation = explanations[i] || `Matches your current ${mood} vibe perfectly.`;
+    });
+  } catch (err) {
+    console.error('AI Explanation Engine failed:', err);
+    finalTracks.forEach(t => t.aiExplanation = `Great match for your ${mood} mood.`);
+  }
+
+  return finalTracks;
 }
 
 module.exports = { buildPlaylist };

@@ -14,8 +14,12 @@ export function MoodProvider({ children }) {
     setTracks(data.tracks || [])
   }, [])
 
+  const updateTracks = useCallback((newTracks) => {
+    setTracks(newTracks)
+  }, [])
+
   return (
-    <MoodContext.Provider value={{ mood, moodData, tracks, loading, setLoading, updateMood }}>
+    <MoodContext.Provider value={{ mood, moodData, tracks, loading, setLoading, updateMood, updateTracks }}>
       {children}
     </MoodContext.Provider>
   )
